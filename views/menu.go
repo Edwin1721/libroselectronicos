@@ -9,8 +9,9 @@ import (
 )
 
 func MostrarMenu() {
-	fmt.Println("\nMenu Principal")
-	fmt.Println("1. Listar Libros")
+	fmt.Println("\n🔸 Menú Principal")
+	fmt.Println("1. Agregar Libro")
+	fmt.Println("2. Listar Libros")
 	fmt.Println("0. Salir")
 	fmt.Print("Selecciona una opción: ")
 }
