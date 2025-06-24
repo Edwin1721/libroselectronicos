@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Libro</title>
+</head>
+
+<body>
+    <h1>Editar Libro</h1>
+    <p><a href="/libros">Volver a la lista de libros</a></p>
+
+    {{if .Error}}
+    <p style="color: red;">Error: {{.Error}}</p>
+    {{end}}
+
+    <form action="/libros/{{.GetID}}/editar" method="POST">
+        <input type="hidden" name="id" value="{{.GetID}}">
+        <label for="titulo">Título:</label><br>
+        <input type="text" id="titulo" name="titulo" value="{{.GetTitulo}}" required><br><br>
+        <label for="autor">Autor:</label><br>
+        <input type="text" id="autor" name="autor" value="{{.GetAutor}}" required><br><br>
+        <label for="anio">Año:</label><br>
+        <input type="number" id="anio" name="anio" value="{{.GetAnio}}" required><br><br>
+        <button type="submit">Guardar Cambios</button>
+    </form>
+</body>
+
+</html>

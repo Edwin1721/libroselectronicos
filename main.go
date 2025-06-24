@@ -1,42 +1,46 @@
 package main
 
 import (
-	"fmt"
+	"log"
+	"net/http"
+
 	"libroselectronicos/controllers"
+	"libroselectronicos/db"
 	"libroselectronicos/views"
+
+	"github.com/gorilla/mux"
 )
 
 func main() {
-	controlador := controllers.NewLibroController()
-	fmt.Println("📚 Bienvenido al Sistema de Libros Electrónicos")
+	almacen := db.NuevoAlmacen()
+	defer almacen.Close()
 
-	for {
-		views.MostrarMenu()
-		opcion := views.LeerOpcion()
+	// CORRECCIÓN: Asegúrate que NewApiLibroController tiene 'New' y 'Api' capitalizados correctamente
+	// y que ApiLibroController también tiene 'Api' capitalizado.
+	apiController := controllers.NewApiLibroController(almacen)
+	viewsController := views.NewViewsController(almacen)
 
-		switch opcion {
-		case 1:
-			var id, anio int
-			var titulo, autor string
-			fmt.Print("ID: ")
-			fmt.Scan(&id)
-			fmt.Print("Título: ")
-			fmt.Scan(&titulo)
-			fmt.Print("Autor: ")
-			fmt.Scan(&autor)
-			fmt.Print("Año: ")
-			fmt.Scan(&anio)
-			controlador.AgregarLibro(id, titulo, autor, anio)
+	router := mux.NewRouter()
 
-		case 2:
-			controlador.ListarLibros()
+	// --- Rutas API (JSON) ---
+	// CORRECCIÓN: Los nombres de los métodos deben ser los definidos en api_libro_controller.go
+	router.HandleFunc("/api/libros", apiController.GetLibrosAPI).Methods("GET")
+	router.HandleFunc("/api/libros/{id}", apiController.GetLibroByIDAPI).Methods("GET")
+	router.HandleFunc("/api/libros", apiController.CreateLibroAPI).Methods("POST")
+	router.HandleFunc("/api/libros/{id}", apiController.UpdateLibroAPI).Methods("PUT")
+	router.HandleFunc("/api/libros/{id}", apiController.DeleteLibroAPI).Methods("DELETE")
 
-		case 0:
-			fmt.Println("👋 Saliendo...")
-			return
+	// --- Rutas de Vista (HTML) ---
+	router.HandleFunc("/", viewsController.IndexHandler).Methods("GET")
+	router.HandleFunc("/libros", viewsController.ListarLibrosHTML).Methods("GET")
+	router.HandleFunc("/libros/crear", viewsController.CrearLibroHTMLForm).Methods("GET")
+	router.HandleFunc("/libros/crear", viewsController.CrearLibroHTMLSubmit).Methods("POST")
+	router.HandleFunc("/libros/{id}/editar", viewsController.EditarLibroHTMLForm).Methods("GET")
+	router.HandleFunc("/libros/{id}/editar", viewsController.EditarLibroHTMLSubmit).Methods("POST")
+	router.HandleFunc("/libros/{id}/eliminar", viewsController.EliminarLibroHTML).Methods("POST")
 
-		default:
-			fmt.Println("❌ Opción inválida")
-		}
-	}
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+
+	log.Println("Servidor iniciado en http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", router))
 }

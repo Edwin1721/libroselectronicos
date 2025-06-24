@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"strings"
+	"strings" // Asegúrate de que strings esté importado si se usa
 
 	"libroselectronicos/db"
 	"libroselectronicos/models"
@@ -14,16 +14,19 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type LibroController struct {
+// ApiLibroController DEBE EMPEZAR CON MAYÚSCULA 'A' para ser exportable y visible.
+type ApiLibroController struct {
 	Almacen db.LibroAlmacenamiento
 }
 
-func NuevoLibroController(almacen db.LibroAlmacenamiento) *LibroController {
-	return &LibroController{Almacen: almacen}
+// NewApiLibroController DEBE EMPEZAR CON MAYÚSCULA 'N' y 'A' para ser exportable y visible.
+func NewApiLibroController(almacen db.LibroAlmacenamiento) *ApiLibroController {
+	return &ApiLibroController{Almacen: almacen}
 }
 
-func (lc *LibroController) CrearLibro(w http.ResponseWriter, r *http.Request) {
-	var nuevoLibro models.Libro
+// CreateLibroAPI maneja la solicitud HTTP POST para crear un nuevo libro.
+func (ac *ApiLibroController) CreateLibroAPI(w http.ResponseWriter, r *http.Request) {
+	var nuevoLibro models.Libro // Deserializar a la struct concreta Libro
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Error al leer el cuerpo de la solicitud", http.StatusBadRequest)
@@ -36,9 +39,15 @@ func (lc *LibroController) CrearLibro(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Como nuevoLibro es models.Libro (struct concreta), puedes acceder a sus campos directamente.
+	// Asegurarse de que el ID sea proporcionado para la creación con ID específico
+	if nuevoLibro.ID == 0 {
+		http.Error(w, "El ID del libro es requerido para la creación.", http.StatusBadRequest)
+		return
+	}
+
+	// Agregar el libro usando la interfaz
 	libroParaAlmacenar := models.NuevoLibro(nuevoLibro.ID, nuevoLibro.Titulo, nuevoLibro.Autor, nuevoLibro.Anio)
-	err = lc.Almacen.AgregarLibro(libroParaAlmacenar) // lc.Almacen es db.LibroAlmacenamiento
+	err = ac.Almacen.AgregarLibro(libroParaAlmacenar)
 	if err != nil {
 		if strings.Contains(err.Error(), "ya existe") {
 			http.Error(w, fmt.Sprintf("Error: %s", err.Error()), http.StatusConflict)
@@ -49,16 +58,18 @@ func (lc *LibroController) CrearLibro(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(libroParaAlmacenar)
+	json.NewEncoder(w).Encode(libroParaAlmacenar) // Retornar el libro agregado
 }
 
-func (lc *LibroController) ObtenerLibros(w http.ResponseWriter, r *http.Request) {
-	libros := lc.Almacen.ListarLibros()
+// GetLibrosAPI maneja la solicitud HTTP GET para listar todos los libros.
+func (ac *ApiLibroController) GetLibrosAPI(w http.ResponseWriter, r *http.Request) {
+	libros := ac.Almacen.ListarLibros()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(libros)
 }
 
-func (lc *LibroController) ObtenerLibroPorID(w http.ResponseWriter, r *http.Request) {
+// GetLibroByIDAPI maneja la solicitud HTTP GET para obtener un libro por su ID.
+func (ac *ApiLibroController) GetLibroByIDAPI(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 	id, err := strconv.Atoi(idStr)
@@ -67,7 +78,7 @@ func (lc *LibroController) ObtenerLibroPorID(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	libro, err := lc.Almacen.ObtenerLibro(id)
+	libro, err := ac.Almacen.ObtenerLibro(id)
 	if err != nil {
 		if err == models.ErrLibroNoEncontrado {
 			http.Error(w, "Libro no encontrado", http.StatusNotFound)
@@ -81,7 +92,8 @@ func (lc *LibroController) ObtenerLibroPorID(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(libro)
 }
 
-func (lc *LibroController) ActualizarLibro(w http.ResponseWriter, r *http.Request) {
+// UpdateLibroAPI maneja la solicitud HTTP PUT para actualizar un libro.
+func (ac *ApiLibroController) UpdateLibroAPI(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 	id, err := strconv.Atoi(idStr)
@@ -103,7 +115,7 @@ func (lc *LibroController) ActualizarLibro(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = lc.Almacen.ActualizarLibro(id, updates)
+	err = ac.Almacen.ActualizarLibro(id, updates)
 	if err != nil {
 		if err == models.ErrLibroNoEncontrado {
 			http.Error(w, "Libro no encontrado", http.StatusNotFound)
@@ -117,7 +129,8 @@ func (lc *LibroController) ActualizarLibro(w http.ResponseWriter, r *http.Reques
 	fmt.Fprintf(w, "Libro con ID %d actualizado exitosamente", id)
 }
 
-func (lc *LibroController) EliminarLibro(w http.ResponseWriter, r *http.Request) {
+// DeleteLibroAPI maneja la solicitud HTTP DELETE para eliminar un libro.
+func (ac *ApiLibroController) DeleteLibroAPI(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 	id, err := strconv.Atoi(idStr)
@@ -126,7 +139,7 @@ func (lc *LibroController) EliminarLibro(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = lc.Almacen.EliminarLibro(id)
+	err = ac.Almacen.EliminarLibro(id)
 	if err != nil {
 		if err == models.ErrLibroNoEncontrado {
 			http.Error(w, "Libro no encontrado", http.StatusNotFound)

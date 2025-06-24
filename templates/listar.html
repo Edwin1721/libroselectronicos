@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Libros</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Lista de Libros</h1>
+    <p><a href="/">Volver al inicio</a></p>
+    <p><a href="/libros/crear">Añadir Nuevo Libro</a></p>
+
+    {{if .}}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Título</th>
+                <th>Autor</th>
+                <th>Año</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .}}
+            <tr>
+                <td>{{.GetID}}</td>
+                <td>{{.GetTitulo}}</td>
+                <td>{{.GetAutor}}</td>
+                <td>{{.GetAnio}}</td>
+                <td>
+                    <a href="/libros/{{.GetID}}/editar">Editar</a>
+                    <form action="/libros/{{.GetID}}/eliminar" method="POST" style="display:inline;">
+                        <button type="submit"
+                            onclick="return confirm('¿Estás seguro de que quieres eliminar este libro?');">Eliminar</button>
+                    </form>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p>No hay libros disponibles.</p>
+    {{end}}
+</body>
+
+</html>
