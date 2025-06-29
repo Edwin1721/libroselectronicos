@@ -4,27 +4,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar Libro</title>
+    <title>Editar Libro (ID: {{.GetID}})</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
-    <h1>Editar Libro</h1>
-    <p><a href="/libros">Volver a la lista de libros</a></p>
+    <div class="container">
+        <h1>Editar Libro (ID: {{.GetID}})</h1>
+        <div class="navbar">
+            <a href="/">Inicio</a>
+            <a href="/libros">Volver a la Lista</a>
+        </div>
 
-    {{if .Error}}
-    <p style="color: red;">Error: {{.Error}}</p>
-    {{end}}
-
-    <form action="/libros/{{.GetID}}/editar" method="POST">
-        <input type="hidden" name="id" value="{{.GetID}}">
-        <label for="titulo">Título:</label><br>
-        <input type="text" id="titulo" name="titulo" value="{{.GetTitulo}}" required><br><br>
-        <label for="autor">Autor:</label><br>
-        <input type="text" id="autor" name="autor" value="{{.GetAutor}}" required><br><br>
-        <label for="anio">Año:</label><br>
-        <input type="number" id="anio" name="anio" value="{{.GetAnio}}" required><br><br>
-        <button type="submit">Guardar Cambios</button>
-    </form>
+        <form action="/libros/{{.GetID}}/editar" method="POST" class="form-container">
+            <div class="form-group">
+                <label for="id">ID (No editable):</label>
+                <input type="number" id="id" name="id" value="{{.GetID}}" disabled>
+            </div>
+            <div class="form-group">
+                <label for="titulo">Título:</label>
+                <input type="text" id="titulo" name="titulo" value="{{.GetTitulo}}" required>
+            </div>
+            <div class="form-group">
+                <label for="autor">Autor:</label>
+                <input type="text" id="autor" name="autor" value="{{.GetAutor}}" required>
+            </div>
+            <div class="form-group">
+                <label for="anio">Año:</label>
+                <input type="number" id="anio" name="anio" value="{{.GetAnio}}" required>
+            </div>
+            <div class="form-group">
+                <label for="caratula_url">URL de la Carátula:</label>
+                <input type="url" id="caratula_url" name="caratula_url" value="{{.GetCaratulaURL}}">
+            </div>
+            <div class="form-group">
+                <label for="sinopsis">Sinopsis:</label>
+                <textarea id="sinopsis" name="sinopsis" rows="5">{{.GetSinopsis}}</textarea>
+            </div>
+            <div class="form-buttons">
+                <button type="submit" class="button-submit">Actualizar Libro</button>
+            </div>
+        </form>
+    </div>
 </body>
 
 </html>

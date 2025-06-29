@@ -4,48 +4,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Libros</title>
+    <title>Bienvenido</title>
+    <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        /* Agrega este bloque style para definir el CSS */
-        body {
-            font-family: Arial, sans-serif;
+        .hero {
             text-align: center;
-            /* Esto centrará todo el texto dentro del body */
-            margin-top: 50px;
-            /* Un poco de espacio desde arriba */
+            padding: 50px 20px;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+            margin-bottom: 30px;
         }
 
-        h1 {
+        .hero h1 {
             color: #333;
-            margin-bottom: 20px;
+            font-size: 2.5em;
+            margin-bottom: 15px;
         }
 
-        ul {
-            list-style: none;
-            padding: 0;
+        .hero p {
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
         }
 
-        li {
-            margin-bottom: 10px;
+        .auth-links {
+            margin-top: 20px;
         }
 
-        a {
+        .auth-links a,
+        .auth-links button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 0 10px;
+            border-radius: 5px;
             text-decoration: none;
-            color: #007bff;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+            border: none;
+            font-size: 1em;
         }
 
-        a:hover {
-            text-decoration: underline;
+        .auth-links a.login-btn {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .auth-links a.login-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .auth-links a.register-btn {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .auth-links a.register-btn:hover {
+            background-color: #218838;
+        }
+
+        .auth-links button.logout-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .auth-links button.logout-btn:hover {
+            background-color: #c82333;
+        }
+
+        .welcome-message {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #333;
         }
     </style>
 </head>
 
 <body>
-    <h1>Bienvenido a la Gestión de Libros Electrónicos</h1>
-    <ul>
-        <li><a href="/libros">Ver Libros</a></li>
-        <li><a href="/libros/crear">Crear Nuevo Libro</a></li>
-    </ul>
+    <div class="container">
+        <div class="hero">
+            {{if .Usuario}}
+            <h1 class="welcome-message">¡Bienvenido, {{.Usuario.GetUsername}}!</h1>
+            <p>Explora nuestra colección de libros electrónicos.</p>
+            <div class="auth-links">
+                <form action="/logout" method="POST" style="display: inline;">
+                    <button type="submit" class="logout-btn">Cerrar Sesión</button>
+                </form>
+            </div>
+            {{else}}
+            <h1>Bienvenido a tu Tienda de Libros Electrónicos</h1>
+            <p>Regístrate o inicia sesión para explorar nuestra vasta colección y empezar a alquilar libros.</p>
+            <div class="auth-links">
+                <a href="/login" class="login-btn">Iniciar Sesión</a>
+                <a href="/registro" class="register-btn">Registrarse</a>
+            </div>
+            {{end}}
+        </div>
+
+        <div class="navbar">
+            <a href="/libros">Ver Libros</a>
+            {{if .Usuario}}
+            {{if eq .Usuario.GetRol "administrador"}}
+            <a href="/libros/crear">Añadir Nuevo Libro (Admin)</a>
+            {{end}}
+            {{end}}
+        </div>
+    </div>
 </body>
 
 </html>

@@ -1,4 +1,4 @@
-package controllers
+package db
 
 import (
 	"encoding/json"
@@ -23,7 +23,7 @@ func NuevoLibroController(almacen db.LibroAlmacenamiento) *LibroController {
 }
 
 func (lc *LibroController) CrearLibro(w http.ResponseWriter, r *http.Request) {
-	var nuevoLibro models.Libro
+	var nuevoLibro models.Libro // Aquí recibimos la estructura completa, incluyendo CaratulaURL
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Error al leer el cuerpo de la solicitud", http.StatusBadRequest)
@@ -36,12 +36,21 @@ func (lc *LibroController) CrearLibro(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Como nuevoLibro es models.Libro (struct concreta), puedes acceder a sus campos directamente.
-	libroParaAlmacenar := models.NuevoLibro(nuevoLibro.ID, nuevoLibro.Titulo, nuevoLibro.Autor, nuevoLibro.Anio)
-	err = lc.Almacen.AgregarLibro(libroParaAlmacenar) // lc.Almacen es db.LibroAlmacenamiento
+	// ¡CORRECCIÓN AQUÍ!
+	// Utiliza NuevoLibroConCaratula y pasa todos los campos, incluyendo CaratulaURL
+	// La función AgregarLibro de la interfaz espera *models.Libro
+	libroParaAlmacenar := models.NuevoLibroConCaratula(
+		nuevoLibro.ID,
+		nuevoLibro.Titulo,
+		nuevoLibro.Autor,
+		nuevoLibro.Anio,
+		nuevoLibro.CaratulaURL, // Añadido CaratulaURL
+	)
+
+	err = lc.Almacen.AgregarLibro(libroParaAlmacenar)
 	if err != nil {
-		if strings.Contains(err.Error(), "ya existe") {
-			http.Error(w, fmt.Sprintf("Error: %s", err.Error()), http.StatusConflict)
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") { // Cambio a un error más específico de SQLite
+			http.Error(w, fmt.Sprintf("Error: El libro con ID %d ya existe.", nuevoLibro.ID), http.StatusConflict)
 		} else {
 			http.Error(w, "Error al agregar libro: "+err.Error(), http.StatusInternalServerError)
 		}

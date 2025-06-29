@@ -5,62 +5,79 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lista de Libros</title>
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th,
-        td {
-            border: 1px solid black;
-            padding: 8px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #f2f2f2;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
-    <h1>Lista de Libros</h1>
-    <p><a href="/">Volver al inicio</a></p>
-    <p><a href="/libros/crear">Añadir Nuevo Libro</a></p>
-
-    {{if .}}
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Título</th>
-                <th>Autor</th>
-                <th>Año</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{range .}}
-            <tr>
-                <td>{{.GetID}}</td>
-                <td>{{.GetTitulo}}</td>
-                <td>{{.GetAutor}}</td>
-                <td>{{.GetAnio}}</td>
-                <td>
-                    <a href="/libros/{{.GetID}}/editar">Editar</a>
-                    <form action="/libros/{{.GetID}}/eliminar" method="POST" style="display:inline;">
-                        <button type="submit"
-                            onclick="return confirm('¿Estás seguro de que quieres eliminar este libro?');">Eliminar</button>
-                    </form>
-                </td>
-            </tr>
+    <div class="container">
+        <h1>Libros Disponibles</h1>
+        <div class="navbar">
+            <a href="/">Inicio</a>
+            {{if .Usuario}}
+            {{if eq .Usuario.GetRol "administrador"}}
+            <a href="/libros/crear">Añadir Nuevo Libro</a>
             {{end}}
-        </tbody>
-    </table>
-    {{else}}
-    <p>No hay libros disponibles.</p>
-    {{end}}
+            {{else}}
+            <a href="/login">Iniciar Sesión</a>
+            <a href="/registro">Registrarse</a>
+            {{end}}
+        </div>
+
+        {{if .Usuario}}
+        <p>Bienvenido, <strong>{{.Usuario.GetUsername}}</strong>! (Rol: {{.Usuario.GetRol}})</p>
+        {{else}}
+        <p>Necesitas <a href="/login">iniciar sesión</a> para alquilar libros.</p>
+        {{end}}
+
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Título</th>
+                    <th>Autor</th>
+                    <th>Año</th>
+                    <th>Carátula</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Libros}}
+                <tr>
+                    <td>{{.GetID}}</td>
+                    <td>{{.GetTitulo}}</td>
+                    <td>{{.GetAutor}}</td>
+                    <td>{{.GetAnio}}</td>
+                    <td>
+                        {{if .GetCaratulaURL}}
+                        <img src="{{.GetCaratulaURL}}" alt="Carátula de {{.GetTitulo}}" class="caratula">
+                        {{else}}
+                        No disponible
+                        {{end}}
+                    </td>
+                    <td>
+                        <div class="button-group">
+                            <a href="/libros/{{.GetID}}/sinopsis" class="button-edit">Ver Sinopsis</a>
+                            {{if eq $.Usuario.GetRol "administrador"}}
+                            <a href="/libros/{{.GetID}}/editar" class="button-edit">Editar</a>
+                            <form action="/libros/{{.GetID}}/eliminar" method="POST"
+                                onsubmit="return confirm('¿Estás seguro de que quieres eliminar este libro?');">
+                                <button type="submit" class="button-delete">Eliminar</button>
+                            </form>
+                            {{else if $.Usuario}}
+                            <button class="button-primary" disabled>Alquilar (Prox.)</button>
+                            {{end}}
+                        </div>
+                    </td>
+                </tr>
+                {{else}}
+                <tr>
+                    <td colspan="6" class="text-center">No hay libros registrados.</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
 </body>
 
 </html>

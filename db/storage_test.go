@@ -1,163 +1,172 @@
-package db_test // Se asume que este test está en el paquete db_test para aislamiento.
+package db_test
 
 import (
+	"errors"
+	"libroselectronicos/db"
+	"libroselectronicos/models"
 	"os"
-	"strings"
 	"testing"
-
-	"libroselectronicos/db"     // Importa el paquete db
-	"libroselectronicos/models" // Importa el paquete models
 )
 
-// setupTestDB crea una base de datos SQLite temporal para pruebas
-// y asegura que la tabla 'libros' esté limpia.
-func setupTestDB(t *testing.T) *db.AlmacenLibros { // <-- Retorna el tipo CONCRETO para que el método ClearTable sea visible
-	dbPath := "./test_libros.db"
-	_ = os.Remove(dbPath) // Asegurarse de que el archivo de la DB no exista al inicio del test
+// Nombre de la base de datos de prueba
+const testDBPath = "test_libros.db"
 
-	// Usar la función pública NewAlmacenWithDB para crear la instancia de AlmacenLibros
-	almacen := db.NewAlmacenWithDB(dbPath)
+// setupTestDB inicializa una base de datos de prueba limpia.
+// Ahora devuelve la interfaz db.LibroAlmacenamiento
+func setupTestDB(t *testing.T) db.LibroAlmacenamiento { // CAMBIO: de *db.AlmacenSQLite a db.LibroAlmacenamiento
+	// Asegúrate de que no haya un archivo de base de datos anterior.
+	os.Remove(testDBPath)
 
-	// Limpiar la tabla antes de cada test para asegurar un estado inicial vacío
-	// ¡CORRECCIÓN APLICADA AQUÍ! Usar el nuevo método público ClearTable()
-	err := almacen.ClearTable() // <-- ESTA ES LA LÍNEA QUE DEBE FUNCIONAR AHORA
-	if err != nil {
-		almacen.Close()
-		t.Fatalf("Error al limpiar la tabla de libros en DB de prueba: %v", err)
-	}
-
-	return almacen
-}
-
-// tearDownTestDB cierra la base de datos de prueba y elimina el archivo.
-func tearDownTestDB(_ *testing.T, almacen *db.AlmacenLibros) {
+	// Llama a NewAlmacenForTest para crear una instancia de la base de datos de prueba.
+	almacen := db.NewAlmacenForTest(testDBPath) // Usar el constructor correcto de la base de datos para pruebas
 	if almacen == nil {
-		return
+		t.Fatalf("No se pudo inicializar el almacén de prueba")
 	}
-	almacen.Close()
-	dbPath := "./test_libros.db"
-	_ = os.Remove(dbPath) // Elimina el archivo después de que el test termina
+	return almacen // Esto devolverá la implementación concreta que satisface la interfaz
 }
 
+// teardownTestDB cierra la base de datos y elimina el archivo.
+// Ahora acepta la interfaz db.LibroAlmacenamiento
+func teardownTestDB(almacen db.LibroAlmacenamiento) { // CAMBIO: de *db.AlmacenSQLite a db.LibroAlmacenamiento
+	almacen.Close()
+	os.Remove(testDBPath)
+}
+
+// TestAgregarLibro
 func TestAgregarLibro(t *testing.T) {
 	almacen := setupTestDB(t)
-	defer tearDownTestDB(t, almacen)
+	defer teardownTestDB(almacen)
 
-	libro := models.NuevoLibro(1, "Título Test", "Autor Test", 2023)
+	libro := models.NuevoLibroConCaratula(1, "El Gran Go", "Gopher", 2023, "http://example.com/gopher.jpg")
 	err := almacen.AgregarLibro(libro)
 	if err != nil {
 		t.Fatalf("Error al agregar libro: %v", err)
 	}
 
-	// Verificar si el libro fue realmente agregado
-	found, err := almacen.ObtenerLibro(1)
-	if err != nil {
-		t.Fatalf("No se pudo obtener el libro agregado: %v", err)
-	}
-	if found.GetID() != 1 || found.GetTitulo() != "Título Test" {
-		t.Errorf("Libro agregado incorrectamente. Obtenido: ID:%d, Título:%s", found.GetID(), found.GetTitulo())
-	}
-
-	// Intentar agregar el mismo libro (debería fallar)
-	err = almacen.AgregarLibro(libro)
-	if err == nil || !strings.Contains(err.Error(), "ya existe") {
-		t.Errorf("Se esperaba error de libro existente, obtenido: %v", err)
-	}
-}
-
-func TestListarLibros(t *testing.T) {
-	almacen := setupTestDB(t)
-	defer tearDownTestDB(t, almacen)
-
-	// Al inicio, la lista debería estar vacía
+	// Verificar que el libro fue agregado
 	libros := almacen.ListarLibros()
-	if len(libros) != 0 {
-		t.Errorf("Se esperaba lista vacía al inicio, obtenido %d elementos: %v", len(libros), libros)
+	if len(libros) != 1 {
+		t.Errorf("Se esperaba 1 libro, se obtuvieron %d", len(libros))
+	}
+	if libros[0].GetTitulo() != "El Gran Go" {
+		t.Errorf("Título incorrecto: esperado 'El Gran Go', obtenido '%s'", libros[0].GetTitulo())
 	}
 
-	// Agregar algunos libros
-	almacen.AgregarLibro(models.NuevoLibro(1, "Libro A", "Autor X", 2001))
-	almacen.AgregarLibro(models.NuevoLibro(2, "Libro B", "Autor Y", 2002))
-
-	libros = almacen.ListarLibros()
-	if len(libros) != 2 {
-		t.Errorf("Se esperaba 2 libros, obtenido %d", len(libros))
+	// Intentar agregar un libro con el mismo ID (debería fallar)
+	err = almacen.AgregarLibro(libro)
+	if !errors.Is(err, models.ErrLibroYaExiste) { // Uso de errors.Is para comparar errores centinela
+		t.Errorf("Se esperaba un error de libro duplicado, obtenido: %v", err)
 	}
 }
 
+// TestObtenerLibro
 func TestObtenerLibro(t *testing.T) {
 	almacen := setupTestDB(t)
-	defer tearDownTestDB(t, almacen)
+	defer teardownTestDB(almacen)
 
-	libro := models.NuevoLibro(10, "Libro Diez", "Autor Diez", 2010)
-	almacen.AgregarLibro(libro)
+	libro1 := models.NuevoLibroConCaratula(1, "Libro A", "Autor X", 2000, "urlA.jpg")
+	almacen.AgregarLibro(libro1)
 
-	found, err := almacen.ObtenerLibro(10)
+	// Obtener libro existente
+	obtenido, err := almacen.ObtenerLibro(1)
 	if err != nil {
-		t.Fatalf("Error al obtener libro existente: %v", err)
+		t.Fatalf("Error al obtener libro: %v", err)
 	}
-	if found.GetID() != 10 {
-		t.Errorf("ID de libro incorrecto, esperado 10, obtenido %d", found.GetID())
+	if obtenido.GetTitulo() != "Libro A" {
+		t.Errorf("Título incorrecto: esperado 'Libro A', obtenido '%s'", obtenido.GetTitulo())
 	}
 
-	// Intentar obtener libro no existente
-	_, err = almacen.ObtenerLibro(999)
-	if err == nil || err != models.ErrLibroNoEncontrado {
+	// Obtener libro no existente
+	_, err = almacen.ObtenerLibro(99)
+	if !errors.Is(err, models.ErrLibroNoEncontrado) {
 		t.Errorf("Se esperaba ErrLibroNoEncontrado, obtenido: %v", err)
 	}
 }
 
+// TestListarLibros
+func TestListarLibros(t *testing.T) {
+	almacen := setupTestDB(t)
+	defer teardownTestDB(almacen)
+
+	// Lista vacía inicialmente
+	libros := almacen.ListarLibros()
+	if len(libros) != 0 {
+		t.Errorf("Se esperaba lista vacía, se obtuvieron %d libros", len(libros))
+	}
+
+	libro1 := models.NuevoLibroConCaratula(1, "Libro Uno", "Autor Uno", 2020, "url1.jpg")
+	libro2 := models.NuevoLibroConCaratula(2, "Libro Dos", "Autor Dos", 2021, "url2.jpg")
+	almacen.AgregarLibro(libro1)
+	almacen.AgregarLibro(libro2)
+
+	libros = almacen.ListarLibros()
+	if len(libros) != 2 {
+		t.Errorf("Se esperaban 2 libros, se obtuvieron %d", len(libros))
+	}
+}
+
+// TestActualizarLibro
 func TestActualizarLibro(t *testing.T) {
 	almacen := setupTestDB(t)
-	defer tearDownTestDB(t, almacen)
+	defer teardownTestDB(almacen)
 
-	almacen.AgregarLibro(models.NuevoLibro(1, "Original", "Auth", 2000))
+	libro := models.NuevoLibroConCaratula(1, "Titulo Original", "Autor Original", 2020, "original.jpg")
+	almacen.AgregarLibro(libro)
 
 	updates := map[string]interface{}{
-		"titulo": "Actualizado",
-		"anio":   2023,
+		"titulo":       "Titulo Actualizado",
+		"anio":         2022,
+		"caratula_url": "updated.jpg",
 	}
 	err := almacen.ActualizarLibro(1, updates)
 	if err != nil {
 		t.Fatalf("Error al actualizar libro: %v", err)
 	}
 
-	updated, err := almacen.ObtenerLibro(1)
+	actualizado, err := almacen.ObtenerLibro(1)
 	if err != nil {
 		t.Fatalf("Error al obtener libro actualizado: %v", err)
 	}
-	if updated.GetTitulo() != "Actualizado" || updated.GetAnio() != 2023 || updated.GetAutor() != "Auth" {
-		t.Errorf("Libro no actualizado correctamente. Obtenido: ID:%d, Título:%s, Autor:%s, Año:%d",
-			updated.GetID(), updated.GetTitulo(), updated.GetAutor(), updated.GetAnio())
+
+	if actualizado.GetTitulo() != "Titulo Actualizado" {
+		t.Errorf("Título no actualizado: esperado 'Titulo Actualizado', obtenido '%s'", actualizado.GetTitulo())
+	}
+	if actualizado.GetAnio() != 2022 {
+		t.Errorf("Año no actualizado: esperado 2022, obtenido %d", actualizado.GetAnio())
+	}
+	if actualizado.GetCaratulaURL() != "updated.jpg" {
+		t.Errorf("Carátula no actualizada: esperado 'updated.jpg', obtenido '%s'", actualizado.GetCaratulaURL())
 	}
 
-	// Intentar actualizar libro no existente
-	err = almacen.ActualizarLibro(999, updates)
-	if err == nil || err != models.ErrLibroNoEncontrado {
-		t.Errorf("Se esperaba ErrLibroNoEncontrado al actualizar libro no existente, obtenido: %v", err)
+	// Intentar actualizar un libro no existente
+	err = almacen.ActualizarLibro(99, updates)
+	if !errors.Is(err, models.ErrLibroNoEncontrado) {
+		t.Errorf("Se esperaba ErrLibroNoEncontrado al actualizar, obtenido: %v", err)
 	}
 }
 
+// TestEliminarLibro
 func TestEliminarLibro(t *testing.T) {
 	almacen := setupTestDB(t)
-	defer tearDownTestDB(t, almacen)
+	defer teardownTestDB(almacen)
 
-	almacen.AgregarLibro(models.NuevoLibro(1, "A Eliminar", "X", 2000))
+	libro := models.NuevoLibroConCaratula(1, "Libro a Eliminar", "Autor", 2020, "url.jpg")
+	almacen.AgregarLibro(libro)
 
 	err := almacen.EliminarLibro(1)
 	if err != nil {
 		t.Fatalf("Error al eliminar libro: %v", err)
 	}
 
-	// Verificar que el libro fue eliminado
+	// Verificar que fue eliminado
 	_, err = almacen.ObtenerLibro(1)
-	if err == nil || err != models.ErrLibroNoEncontrado {
-		t.Errorf("Libro no eliminado, se esperaba ErrLibroNoEncontrado, obtenido: %v", err)
+	if !errors.Is(err, models.ErrLibroNoEncontrado) {
+		t.Errorf("Se esperaba ErrLibroNoEncontrado después de eliminar, obtenido: %v", err)
 	}
 
-	// Intentar eliminar libro no existente
-	err = almacen.EliminarLibro(999)
-	if err == nil || err != models.ErrLibroNoEncontrado {
-		t.Errorf("Se esperaba ErrLibroNoEncontrado al eliminar libro no existente, obtenido: %v", err)
+	// Intentar eliminar un libro no existente
+	err = almacen.EliminarLibro(99)
+	if !errors.Is(err, models.ErrLibroNoEncontrado) {
+		t.Errorf("Se esperaba ErrLibroNoEncontrado al eliminar no existente, obtenido: %v", err)
 	}
 }

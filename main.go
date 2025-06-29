@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 
-	"libroselectronicos/controllers"
 	"libroselectronicos/db"
 	"libroselectronicos/views"
 
@@ -13,34 +12,36 @@ import (
 
 func main() {
 	almacen := db.NuevoAlmacen()
+	if almacen == nil {
+		log.Fatalf("No se pudo inicializar la base de datos.")
+	}
 	defer almacen.Close()
 
-	// CORRECCIÓN: Asegúrate que NewApiLibroController tiene 'New' y 'Api' capitalizados correctamente
-	// y que ApiLibroController también tiene 'Api' capitalizado.
-	apiController := controllers.NewApiLibroController(almacen)
-	viewsController := views.NewViewsController(almacen)
+	viewsController := views.NewMenuController(almacen)
 
 	router := mux.NewRouter()
 
-	// --- Rutas API (JSON) ---
-	// CORRECCIÓN: Los nombres de los métodos deben ser los definidos en api_libro_controller.go
-	router.HandleFunc("/api/libros", apiController.GetLibrosAPI).Methods("GET")
-	router.HandleFunc("/api/libros/{id}", apiController.GetLibroByIDAPI).Methods("GET")
-	router.HandleFunc("/api/libros", apiController.CreateLibroAPI).Methods("POST")
-	router.HandleFunc("/api/libros/{id}", apiController.UpdateLibroAPI).Methods("PUT")
-	router.HandleFunc("/api/libros/{id}", apiController.DeleteLibroAPI).Methods("DELETE")
+	// Rutas de Autenticación
+	router.HandleFunc("/registro", viewsController.RegistrarUsuarioHTML).Methods("GET")
+	router.HandleFunc("/registro", viewsController.RegistrarUsuarioSubmit).Methods("POST")
+	router.HandleFunc("/login", viewsController.LoginHTML).Methods("GET")
+	router.HandleFunc("/login", viewsController.LoginSubmit).Methods("POST")
+	router.HandleFunc("/logout", viewsController.Logout).Methods("POST") // Normalmente un POST para logout
 
-	// --- Rutas de Vista (HTML) ---
-	router.HandleFunc("/", viewsController.IndexHandler).Methods("GET")
+	// Rutas para las vistas HTML de libros
+	router.HandleFunc("/", viewsController.Index).Methods("GET")
 	router.HandleFunc("/libros", viewsController.ListarLibrosHTML).Methods("GET")
-	router.HandleFunc("/libros/crear", viewsController.CrearLibroHTMLForm).Methods("GET")
+	router.HandleFunc("/libros/crear", viewsController.CrearLibroHTML).Methods("GET")
 	router.HandleFunc("/libros/crear", viewsController.CrearLibroHTMLSubmit).Methods("POST")
-	router.HandleFunc("/libros/{id}/editar", viewsController.EditarLibroHTMLForm).Methods("GET")
+	router.HandleFunc("/libros/{id}/editar", viewsController.EditarLibroHTML).Methods("GET")
 	router.HandleFunc("/libros/{id}/editar", viewsController.EditarLibroHTMLSubmit).Methods("POST")
-	router.HandleFunc("/libros/{id}/eliminar", viewsController.EliminarLibroHTML).Methods("POST")
+	router.HandleFunc("/libros/{id}/eliminar", viewsController.EliminarLibroHTMLSubmit).Methods("POST")
+	router.HandleFunc("/libros/{id}/sinopsis", viewsController.VerSinopsisHTML).Methods("GET")
 
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	// Servir archivos estáticos (CSS, JS, imágenes)
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 
-	log.Println("Servidor iniciado en http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", router))
+	port := ":8080"
+	log.Printf("Servidor iniciado en http://localhost%s\n", port)
+	log.Fatal(http.ListenAndServe(port, router))
 }
